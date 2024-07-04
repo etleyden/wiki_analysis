@@ -2,5 +2,6 @@
     "memory_limit": 16384,
     "chunk_size": 1,
     "wikidump": "wiki.xml",
-    "output": "out.txt"
+    "output": "out.txt",
+    "top_n_words": 10
 }

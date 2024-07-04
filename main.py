@@ -15,21 +15,22 @@ PAGE_TEXT = re.compile(r"<text[\s\S]*?>([\s|\S]*)?<\/text>")
 DOUBLE_BRACKETS = re.compile(r"{\s?{[\S|\s]*}\s?}") # matches any {{[useless wikicode]}} that may be leftover
 HTML_TAGS = re.compile(r"<\/?[a-z]+(\s[a-z]*=\"?[a-zA-Z0-9]*\"?)*\s?\/?>")
 NLTK_STOPWORDS = ['i', 'me', 'my', 'myself', 'we', 'our', 'ours', 
-'ourselves', 'you', "you're", "you've", "you'll", "you'd", 'your', 'yours', 'yourself', 
-'yourselves', 'he', 'him', 'his', 'himself', 'she', "she's", 'her', 'hers', 'herself', 
-'it', "it's", 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves',
- 'what', 'which', 'who', 'whom', 'this', 'that', "that'll", 'these', 'those', 'am', 'is', 'are',
- 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing',
- 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 
-'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 
-'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 
-'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 
-'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 
-'s', 't', 'can', 'will', 'just', 'don', "don't", 'should', "should've", 'now', 'd', 'll', 'm', 'o', 're', 've', 'y',
- 'ain', 'aren', "aren't", 'couldn', "couldn't", 'didn', "didn't", 'doesn', "doesn't", 
-'hadn', "hadn't", 'hasn', "hasn't", 'haven', "haven't", 'isn', "isn't", 'ma', 'mightn',
- "mightn't", 'mustn', "mustn't", 'needn', "needn't", 'shan', "shan't", 'shouldn', "shouldn't", 
-'wasn', "wasn't", 'weren', "weren't", 'won', "won't", 'wouldn', "wouldn't"]
+    'ourselves', 'you', "you're", "you've", "you'll", "you'd", 'your', 'yours', 'yourself', 
+    'yourselves', 'he', 'him', 'his', 'himself', 'she', "she's", 'her', 'hers', 'herself', 
+    'it', "it's", 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves',
+    'what', 'which', 'who', 'whom', 'this', 'that', "that'll", 'these', 'those', 'am', 'is', 'are',
+    'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing',
+    'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 
+    'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 
+    'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 
+    'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 
+    'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 
+    's', 't', 'can', 'will', 'just', 'don', "don't", 'should', "should've", 'now', 'd', 'll', 'm', 'o', 're', 've', 'y',
+    'ain', 'aren', "aren't", 'couldn', "couldn't", 'didn', "didn't", 'doesn', "doesn't", 
+    'hadn', "hadn't", 'hasn', "hasn't", 'haven', "haven't", 'isn', "isn't", 'ma', 'mightn',
+    "mightn't", 'mustn', "mustn't", 'needn', "needn't", 'shan', "shan't", 'shouldn', "shouldn't", 
+    'wasn', "wasn't", 'weren', "weren't", 'won', "won't", 'wouldn', "wouldn't"]
+IGNORED_HEADINGS = ["See also", "Notes", "References", "Bibliography", "External links", "Further reading", "Notes and references"]
 
 # reads `chunk_size` megabytes from the wikidump given by `wiki_fname`. 
 # if `outfile` is specified, the processed chunks are written to a file.
@@ -62,7 +63,7 @@ class Page():
 
 # parses the XML dump text for ONE page (matches <page>(.*)</page>)
 # returns a Page object
-def parse_text(text: str) -> Page:
+def parse_text(text: str, top_n_words=10) -> Page:
     
     # get the title TODO: this could probably be one line
     title = TITLE.search(text)
@@ -72,10 +73,17 @@ def parse_text(text: str) -> Page:
     # clean the text for some statistical analysis about word frequencies
     # grab everything in the <text></text> tags
     page_text = PAGE_TEXT.search(text)
+
     if page_text:
+        page_text = page_text.group(1)
+        # chop off the irrelevant part of the page (any section with an IGNORED_HEADING)
+        for heading in IGNORED_HEADINGS:
+            match = re.search(rf"==\s?{heading}\s?==", page_text)
+            if match: page_text = page_text[:match.start(0)]
+
         # shave off most of the wikicode
-        page_text = mwp.parse(page_text.group(1))
-        page_text = page_text.strip_code()
+        wikicode = mwp.parse(page_text)
+        page_text = wikicode.strip_code()
         # remove all {{wikicode}}
         page_text = DOUBLE_BRACKETS.sub("", page_text)
         # remove all <ref>, <sub>, etc
@@ -88,16 +96,32 @@ def parse_text(text: str) -> Page:
         page_text = [x for x in page_text if x not in set_stopwords]
         # Count the N most frequent elements (n=10)
         count = Counter(page_text)
-        most_common = heapq.nlargest(10, count.items(), key=lambda x:x[1])
+        most_common = heapq.nlargest(top_n_words, count.items(), key=lambda x:x[1])
         most_common = [item for item, freq in most_common]
-        print(most_common)
+
+        # get the links in the page, for network analysis
+        links = wikicode.filter_wikilinks()
+        links = list(map(clean_wikilinks, links))
+
+        return Page(title, links, most_common)
+
 
 # takes a title of a wikipedia page and computes the URL ending
 # returns the URL as a string
 def get_url_ending(title: str) -> str:
-    # turn spaces into underscores
-
     pass
+
+# Take in a string which may contain "amp;" and replace it with &
+# Also logs any time the string contains `;` after the fact, as to catch other
+# symbols that need to be replaced
+# FOR: formatting page titles so they can be easily used as links
+def clean_wikilinks(link: str) -> str:
+    #page_title = WIKILINK_PAGE_TITLE.search(text)
+    #if page_title:
+    #    text = page_title.group(0)
+    text = re.sub("amp;", "and", link.title.strip_code())
+    if ";" in text: print(f"{text} contains a semicolon, and may need to be adjusted later.")
+    return text
 
 if __name__ == "__main__":
     #read_chunks(conf["wikidump"], conf["chunk_size"], conf["output"])
