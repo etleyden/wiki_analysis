@@ -1,6 +1,7 @@
 import json
 import mwparserfromhell as mwp
 import re
+import sqlite3
 # find the n most frequent elements in an array
 from collections import Counter
 import heapq
@@ -123,8 +124,19 @@ def clean_wikilinks(link: str) -> str:
     if ";" in text: print(f"{text} contains a semicolon, and may need to be adjusted later.")
     return text
 
+def sql_debugger(statement: str):
+    print(statement)
+
+def create_db(db_fname: str, db_conf_fname: str) -> sqlite3.Connection:
+    with open(db_conf_fname) as db_conf:
+        create_commands = db_conf.read()
+        db = sqlite3.connect(db_fname)
+        #db.set_trace_callback(sql_debugger) # toggle for debugging
+        db_cur = db.cursor()
+        db.executescript(create_commands)
+        return db
+    
 if __name__ == "__main__":
+    create_db(conf["db"], conf["create_db"])
     #read_chunks(conf["wikidump"], conf["chunk_size"], conf["output"])
-    with open(conf["output"]) as test_f:
-        test_str = test_f.read()
-        parse_text(test_str)
+    pass

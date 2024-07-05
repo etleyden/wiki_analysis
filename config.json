@@ -3,5 +3,7 @@
     "chunk_size": 1,
     "wikidump": "wiki.xml",
     "output": "out.txt",
-    "top_n_words": 10
+    "top_n_words": 10,
+    "create_db": "create_wiki_db.sql",
+    "db": "wiki.db"
 }
